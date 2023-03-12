@@ -1,0 +1,199 @@
+version 12.3
+service pad to-xot
+service pad from-xot
+service tcp-keepalives-in
+service tcp-keepalives-out
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname x25-vhsvr-com
+!
+boot-start-marker
+boot-end-marker
+!
+logging buffered 100000 debugging
+! enable secret ...
+! enable password ...
+!
+username x25 password 0 x25
+username x25 autocommand menu x25in
+memory-size iomem 10
+clock timezone Eastern -4
+!
+no aaa new-model
+ip subnet-zero
+ip cef
+!
+!
+! ip domain name vhsvr.com
+! ip host tpcbbs ...
+! ip name-server ...
+no ftp-server write-enable
+!
+modemcap entry AUTOANSWER:MSC=S0=1:TPL=default
+modemcap entry NOANSWER:MSC=S0=0:TPL=default
+!
+x25 profile TELEBAHN dxe
+ x25 version 1988
+ x25 modulo 128
+ x25 address 783235
+ x25 win 4
+ x25 wout 4
+ x25 ips 1024
+ x25 ops 1024
+ x25 facility windowsize 10 10
+ x25 facility packetsize 1024 1024
+ x25 subscribe packetsize permit 32 1024 target 512 1024
+ x25 subscribe windowsize permit 1 16 target 2 10
+x25 routing
+!
+!
+xot access-group 10 profile TELEBAHN
+!
+!
+interface FastEthernet0/0
+ ip address 192.168.1.2 255.255.255.0
+ duplex auto
+ speed auto
+ no keepalive
+ no mop enabled
+!
+!
+ip classless
+ip route 0.0.0.0 0.0.0.0 192.168.1.1
+no ip http server
+!
+access-list 10 permit any
+!
+menu offline title '
+Sorry. That host is currently offline.'
+menu offline prompt 'Press RETURN to continue.'
+menu offline command q menu-exit
+menu offline default q
+menu offline single-space
+!
+menu tpcnet prompt '@'
+menu tpcnet command 783227 tpcbbs
+menu tpcnet command tpcbbs tpcbbs
+menu tpcnet command 687111 jjspad
+menu tpcnet command jj jjspad
+menu tpcnet command exit exit
+menu tpcnet command 78323594 multiz
+menu tpcnet command multiz multiz
+menu tpcnet default exit
+menu tpcnet line-mode
+menu tpcnet single-space
+!
+menu x25in title '
+ 
+ 
+*****************************************************
+ 
+      Welcome to The Phone Company X.25 Gateway
+ 
+          Type a number to select an option.
+               Type Q to disconnect.
+ 
+'
+menu x25in prompt '>'
+menu x25in text 1 The Phone Company BBS
+menu x25in command 1 tpcbbs
+menu x25in text 2 Star Wars
+menu x25in command 2 starwars
+menu x25in text 3 telehack.com
+menu x25in command 3 telehack
+menu x25in text 4 Multiplayer Zork
+menu x25in command 4 multiz
+menu x25in text 8 JJ's X.25 Host
+menu x25in command 8 jjspad
+menu x25in text 9 TPC Official Time
+menu x25in command 9 sho clock
+menu x25in command Q exit
+menu x25in default Q
+menu x25in single-space
+!
+x25 route (...)(...).. xot dns \2.\1.x25.org
+x25 route (...)(...). xot dns \2.\1.x25.org
+x25 route (...)(...) substitute-dest \1\299 xot dns \2.\1.x25.org
+x25 host x25-vhsvr-com 783235
+!
+!
+banner login '
+You can login with username/password x25'
+banner motd '
+ 
+TPCNET
+783 0$(line)A
+'
+alias exec jjspad pad 687111
+alias exec tpcbbs menu offline
+alias exec starwars telnet towel.blinkenlights.nl /quiet
+alias exec telehack telnet telehack.com /quiet
+alias exec multiz telnet tpcbbs 12000 /quiet
+!
+line con 0
+ no motd-banner
+ x25 subaddress 0
+ length 0
+ flowcontrol software
+line 1 4
+ exec-timeout 0 0
+ x25 subaddress line
+ vacant-message ''
+ modem InOut
+ modem autoconfigure type AUTOANSWER
+ rotary 89
+ autocommand  menu tpcnet
+ no activation-character
+ length 0
+ transport input pad telnet
+ transport output pad telnet
+ autoselect timeout 1
+ autohangup
+ stopbits 1
+ speed 115200
+ flowcontrol hardware
+line aux 0
+line vty 0 4
+ x25 subaddress line
+ login local
+ transport input telnet
+ transport output all
+!
+! global parameters for all PAD connected lines
+line vty 5 63
+ exec-timeout 0 0
+ vacant-message ''
+ no login
+ no activation-character
+ transport input pad
+ autohangup
+!
+! rotary group specific parameters follow
+line vty 5 7
+ no motd-banner
+ rotary 90
+ autocommand  show clock
+line vty 8 31
+ rotary 99
+ login local
+ autocommand  menu offline
+! The x25 user profile overrides this line with menu x25in, I'm setting this so all other users will get booted with host offline message if there isn't an override specified for them too.
+!
+! The rest of the incoming rotary groups are unauthenticated and bounce directly to other hosts
+line vty 32 39
+ rotary 91
+ autocommand  tpcbbs
+line vty 40 48
+ rotary 92
+ autocommand  starwars
+line vty 49 55
+ rotary 93
+ autocommand  telehack
+line vty 56 63
+ rotary 94
+ autocommand  multiz
+!
+!
+end
